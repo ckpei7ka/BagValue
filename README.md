@@ -1,5 +1,7 @@
 # BagValue
 
+[![CI](https://github.com/ckpei7ka/BagValue/actions/workflows/ci.yml/badge.svg)](https://github.com/ckpei7ka/BagValue/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/ckpei7ka/BagValue)](https://github.com/ckpei7ka/BagValue/releases/latest)
+
 A standalone, movable window with three numbers:
 
 1. **Carried money** — the copper on the character right now.
@@ -21,7 +23,7 @@ Built for **World of Warcraft: Forever** — client `1.60.1`, TOC `## Interface:
 
 3. Start the game and enable the addon in the AddOns list.
 
-The CurseForge/App installer places it in the same `_forever_` folder. Do not install the Retail build into `_retail_`.
+Prefer the packaged zip from [Releases](https://github.com/ckpei7ka/BagValue/releases/latest): unpack `BagValue-<version>.zip` so that the `BagValue` folder ends up directly in `Interface\AddOns`. The CurseForge/App installer places it in the same `_forever_` folder. Do not install the Retail build into `_retail_`.
 
 ## Use
 
@@ -99,21 +101,34 @@ The pipeline that generated this repository lives in `wow-addon-factory`; it als
 
 ## Release
 
-Every release is a Git tag pushed to `main`:
+Every release is a tag: `0.2.0`, `0.2.1`, `1.0.0` (a leading `v` is accepted). The tag must equal `## Version` in `BagValue.toc`.
 
 ```bash
 git tag 1.2.0
 git push origin 1.2.0
 ```
 
-`.github/workflows/release.yml` runs `BigWigsMods/packager@v2.7.0` with `-g 1.60.1`, which:
+`.github/workflows/release.yml` then:
 
-- builds the zip from the tag,
-- creates the GitHub release,
-- uploads to CurseForge (requires `CF_API_TOKEN` secret and `## X-Curse-Project-ID` in the TOC),
-- uploads to Wago (optional, `WAGO_API_TOKEN` + `## X-Wago-ID`).
+- runs `tools/validate.py` (TOC `16001`, listed files, Lua 5.1 hazards),
+- builds `dist/BagValue-<version>.zip` with `tools/package.py`,
+- fails if the tag and the TOC version differ, or if the zip does not have a single `BagValue/` root with `## Interface: 16001`,
+- publishes a GitHub release with the zip and its `.sha256` attached.
 
-**The first CurseForge upload must be done manually** in the CurseForge dashboard: a project only becomes visible after its first file is uploaded and reviewed. After that, tags deploy automatically.
+`.github/workflows/ci.yml` runs the same checks on every push and pull request and keeps the zip as a build artifact.
+
+### CurseForge automatic packaging
+
+CurseForge packages this repository itself through its repository webhook — no API token in CI and no zip upload:
+
+1. Create the project on CurseForge and copy the project ID from *About This Project*.
+2. Generate a token at <https://www.curseforge.com/account/api-tokens> (name it `Webhooks`).
+3. In GitHub: **Settings → Webhooks → Add webhook**, payload URL
+   `https://www.curseforge.com/api/projects/<projectID>/package?token=<token>`,
+   content type `application/json`, SSL verification on, events: push.
+4. Push a tag. `.pkgmeta` (`package-as: BagValue`) defines the packaged folder; dotfiles and `.pkgmeta` are dropped automatically. A tag without `alpha`/`beta` in its name is published as a Release file.
+
+The first file of a new CurseForge project still has to pass the usual project moderation.
 
 ## License
 
