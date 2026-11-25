@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Forever addon
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: TOC, Lua 5.1 and file checks
+        run: python tools/validate.py
+      - name: Package smoke test
+        run: python tools/package.py
+      - name: Check zip layout (single root, TOC 16001)
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob, re, sys, zipfile
+          zips = glob.glob("dist/*.zip")
+          assert len(zips) == 1, zips
+          with zipfile.ZipFile(zips[0]) as z:
+              names = z.namelist()
+              roots = {n.split("/")[0] for n in names}
+              assert roots == {"BagValue"}, roots
+              tocs = [n for n in names if re.fullmatch(r"BagValue/[^/]+\.toc", n)]
+              assert len(tocs) == 1, tocs
+              toc = z.read(tocs[0]).decode("utf-8-sig")
+              assert "## Interface: 16001" in toc, toc[:200]
+              print(f"OK: {zips[0]} ({len(names)} files, root BagValue/)")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BagValue-zip
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  lint:
+    name: luacheck (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.1 and luacheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1 luarocks
+          sudo luarocks install luacheck
+      - name: Lint
+        run: luacheck . --no-color

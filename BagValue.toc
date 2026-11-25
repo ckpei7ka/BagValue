@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: BagValue
+## Notes: A standalone window that totals the player's carried money, the vendor value of every item in all bags, and the auction value of those items using a configurable price source (TSM, Auctionator, Auctinator, Auctioneer, AHDB, Wowecon, or a custom function).
+## Author: BagValue contributors
+## Version: 0.2.0
+## SavedVariables: BAGVALUE_DB
+## X-Website: https://github.com/ckpei7ka/BagValue
+
+Core.lua
+Util.lua
+Price.lua
+Scan.lua
+Window.lua
+Config.lua

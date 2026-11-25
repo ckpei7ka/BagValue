@@ -1,0 +1,78 @@
+name: Release
+
+# Every tag is a release: 0.2.0, 0.2.1, 1.0.0 (leading "v" is accepted).
+# The tag must match ## Version in the TOC, otherwise the job fails before
+# anything is published.
+on:
+  push:
+    tags: ["*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, verify and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate addon
+        run: python tools/validate.py
+
+      - name: Build release zip
+        run: python tools/package.py
+
+      - name: Verify artifact against the tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          VER="$(python - <<'PY'
+          import pathlib, re
+          toc = next(pathlib.Path(".").glob("*.toc"))
+          for line in toc.read_text(encoding="utf-8-sig").splitlines():
+              if line.lower().startswith("## version:"):
+                  print(line.split(":", 1)[1].strip())
+                  break
+          PY
+          )"
+          if [ "$TAG" != "$VER" ]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' does not match TOC version '$VER' (bump the TOC first)"
+            exit 1
+          fi
+          ZIP="dist/BagValue-${VER}.zip"
+          test -f "$ZIP"
+          python - "$ZIP" <<'PY'
+          import sys, zipfile
+          path = sys.argv[1]
+          with zipfile.ZipFile(path) as z:
+              names = z.namelist()
+              roots = {n.split("/")[0] for n in names}
+              assert roots == {"BagValue"}, f"zip must have a single BagValue/ root, got {roots}"
+              toc = z.read("BagValue/BagValue.toc").decode("utf-8-sig")
+              assert "## Interface: 16001" in toc
+              assert "## SavedVariables: BAGVALUE_DB" in toc
+          print(f"verified {path}: {len(names)} files")
+          PY
+          sha256sum "$ZIP" > "$ZIP.sha256"
+          cat "$ZIP.sha256"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: BagValue ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.zip
+            dist/*.sha256

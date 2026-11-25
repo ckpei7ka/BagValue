@@ -1,0 +1,11 @@
+.git/
+dist/
+*.zip
+*.sha256
+*.log
+audit.sarif
+.luacheckcache
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

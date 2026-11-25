@@ -1,0 +1,16 @@
+package-as: BagValue
+
+ignore:
+  - .github
+  - .gitignore
+  - .luacheckrc
+  - tools
+  - dist
+  - docs
+  - README.md
+  - CHANGELOG.md
+  - LICENSE
+  - "*.zip"
+  - "*.log"
+
+enable-nolib-creation: false
