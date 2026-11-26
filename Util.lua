@@ -98,8 +98,8 @@ function ns.GetItemInfo(linkOrID)
     if linkOrID == nil then return nil end
     local getInfo = getItemInfoFunction()
     if not getInfo then return nil end
-    local ok, name, link, quality, itemLevel, minLevel, itemType, itemSubType, maxStack,
-        equipLoc, texture, sellPrice, classID, subclassID, bindType = pcall(getInfo, linkOrID)
+    local ok, name, link, quality, itemLevel, _, itemType, itemSubType, maxStack,
+        _, _, sellPrice, classID, subclassID, bindType = pcall(getInfo, linkOrID)
     if not ok or type(name) ~= "string" then return nil end
     return {
         name = name,

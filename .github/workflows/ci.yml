@@ -47,10 +47,12 @@ jobs:
             dist/*.sha256
           if-no-files-found: error
 
+  # Advisory by design: luacheck warnings are annotated on the run but never
+  # fail it (see docs/github-actions.md). Only genuine luacheck errors — syntax
+  # errors, invalid inline options, a broken config — fail this job.
   lint:
     name: luacheck (advisory)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install Lua 5.1 and luacheck
@@ -59,4 +61,15 @@ jobs:
           sudo apt-get install -y lua5.1 luarocks
           sudo luarocks install luacheck
       - name: Lint
-        run: luacheck . --no-color
+        shell: bash
+        run: |
+          set +e
+          luacheck . --no-color --codes
+          status=$?
+          set -e
+          # 0 = clean, 1 = warnings only (advisory), 2+ = syntax/config errors.
+          if [ "$status" -eq 1 ]; then
+            echo "::warning::luacheck reported warnings (advisory, the job stays green)"
+            exit 0
+          fi
+          exit "$status"
