@@ -8,7 +8,7 @@
 local ADDON_NAME, ns = ...
 
 ns.name = ADDON_NAME
-ns.version = "0.3.0"
+ns.version = "0.4.0"
 ns.prefix = "BAGVALUE"
 
 local DB_VERSION = 2
@@ -22,6 +22,7 @@ local DEFAULTS = {
     collapsed = false,
     skin = "classic",
     opacity = 0.94,
+    fontSize = 0,
     dbVersion = DB_VERSION,
     window = nil,
 }
@@ -178,6 +179,7 @@ local function printHelp()
     ns.Print("/bagvalue style — list window styles")
     ns.Print("/bagvalue style <id> — pick a window style")
     ns.Print("/bagvalue opacity <20-100> — set the window background opacity")
+    ns.Print("/bagvalue fontsize <0|8-20> — text size (0 = keep the style size)")
     ns.Print("/bagvalue options — open settings")
     ns.Print("/bagvalue debug — toggle debug output")
     ns.Print("/bagvalue reset — reset settings")
@@ -251,6 +253,28 @@ SlashCmdList["BAGVALUE"] = function(message)
                 ns.Print(("window opacity: %d%%"):format(math.floor(percent + 0.5)))
             else
                 ns.Print("usage: /bagvalue opacity <20-100>")
+            end
+        end
+    elseif command == "fontsize" or command == "font" or command == "шрифт" then
+        if rest == "" then
+            local size = ns.GetFontSize and ns.GetFontSize() or 0
+            if size > 0 then
+                ns.Print(("text size: %d"):format(size))
+            else
+                local effective = ns.GetEffectiveFontSize and ns.GetEffectiveFontSize() or 12
+                ns.Print(("text size: style default (%d)"):format(effective))
+            end
+        else
+            local wanted = ns.SafeNumber(strtrim(rest), nil)
+            if wanted and ns.SetFontSize then
+                local applied = ns.SetFontSize(wanted)
+                if applied > 0 then
+                    ns.Print(("text size: %d"):format(applied))
+                else
+                    ns.Print("text size: style default")
+                end
+            else
+                ns.Print("usage: /bagvalue fontsize <0|8-20>")
             end
         end
     elseif command == "options" or command == "config" or command == "настройки" then

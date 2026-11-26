@@ -145,11 +145,84 @@ local function buildPanel()
     opacitySlider:SetValue(math.floor((ns.GetOpacity and ns.GetOpacity() or 0.94) * 100 + 0.5))
     refreshOpacityText(opacitySlider:GetValue())
 
+    -- Text size slider, next to the opacity one. It always writes an explicit
+    -- size; /bagvalue fontsize 0 restores the per-style sizes.
+    local sizeCreated, sizeSlider = pcall(CreateFrame, "Slider", "BagValueFontSlider",
+        panel, "OptionsSliderTemplate")
+    if not sizeCreated then sizeSlider = nil end
+
+    local sizeFallbackLabel
+    if not sizeSlider then
+        sizeSlider = CreateFrame("Slider", "BagValueFontSliderFallback", panel)
+        sizeSlider:SetSize(200, 16)
+        sizeSlider:SetOrientation("HORIZONTAL")
+        if type(sizeSlider.SetThumbTexture) == "function" then
+            sizeSlider:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+        end
+        sizeFallbackLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        sizeFallbackLabel:SetPoint("TOPLEFT", sizeSlider, "TOPLEFT", 0, 20)
+    end
+
+    sizeSlider:SetPoint("TOPLEFT", opacitySlider, "TOPLEFT", 300, 0)
+    sizeSlider:SetWidth(200)
+    if type(sizeSlider.SetOrientation) == "function" then
+        sizeSlider:SetOrientation("HORIZONTAL")
+    end
+    sizeSlider:SetMinMaxValues(8, 20)
+    sizeSlider:SetValueStep(1)
+    if type(sizeSlider.SetObeyStepOnDrag) == "function" then
+        sizeSlider:SetObeyStepOnDrag(true)
+    end
+
+    local sizeLow = _G["BagValueFontSliderLow"]
+    local sizeHigh = _G["BagValueFontSliderHigh"]
+    local sizeText = _G["BagValueFontSliderText"]
+    if sizeLow then sizeLow:SetText("8") end
+    if sizeHigh then sizeHigh:SetText("20") end
+
+    local function refreshSizeText(value)
+        local size = math.floor((ns.SafeNumber(value, 12)) + 0.5)
+        local label = ("Text size: %d"):format(size)
+        if sizeText then
+            sizeText:SetText(label)
+        elseif sizeFallbackLabel then
+            sizeFallbackLabel:SetText(label)
+        end
+    end
+
+    local loadingSize = true
+    sizeSlider:SetScript("OnValueChanged", function(self, value)
+        refreshSizeText(value)
+        if loadingSize then return end
+        if ns.SetFontSize then ns.SetFontSize(math.floor(value + 0.5)) end
+    end)
+
+    local initialSize = (ns.GetEffectiveFontSize and ns.GetEffectiveFontSize()) or 12
+    sizeSlider:SetValue(initialSize)
+    refreshSizeText(initialSize)
+    loadingSize = false
+
+    -- Keep the slider in sync with /bagvalue fontsize.
+    ns.onFontSizeChanged = function(size)
+        local target = size
+        if not (type(target) == "number" and target >= 8) then
+            target = (ns.GetEffectiveFontSize and ns.GetEffectiveFontSize()) or 12
+        end
+        target = math.floor(target + 0.5)
+        if math.abs(sizeSlider:GetValue() - target) >= 1 then
+            loadingSize = true
+            sizeSlider:SetValue(target)
+            loadingSize = false
+        end
+        refreshSizeText(target)
+    end
+
     local appearanceHint = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     appearanceHint:SetPoint("TOPLEFT", opacitySlider, "BOTTOMLEFT", 0, -10)
     appearanceHint:SetWidth(440)
     appearanceHint:SetJustifyH("LEFT")
-    appearanceHint:SetText("The style and the opacity apply to the window immediately and are saved per account.")
+    appearanceHint:SetText("The style, the opacity and the text size apply to the window immediately and are saved per account. " ..
+        "Use /bagvalue fontsize 0 to go back to the size that comes with the style.")
 
     local sourceLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     sourceLabel:SetPoint("TOPLEFT", appearanceHint, "BOTTOMLEFT", 0, -16)

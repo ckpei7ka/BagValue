@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0] - 2026-11-26
+
+### Added
+
+- Text size setting (8-20 pt) in the settings, on the same row as the opacity slider, plus `/bagvalue fontsize <0|8-20>` in chat. `0` keeps the size that comes with the chosen style; anything else pins one size for every style, so the three rows fit a window the player has made small.
+- The item/stack breakdown ("N items, N stacks, N priced, N bound") moved into the window title tooltip instead of a permanent line under the totals.
+
+### Changed
+
+- The minimum window size dropped from 300x180 to 180x110. Below 150 px of height the timestamp line is hidden and the rows move up; in narrow windows "Last price update:" shortens to "Updated:".
+- The footer no longer reserves room for the removed counter line, so the Refresh button sits at the very bottom.
+
+### Fixed
+
+- The corner grips on the left, top-left and top-right used the unmirrored chat size-grabber art, so they looked like they resize the window the wrong way. All four now point outward.
+
 ## [0.3.0] - 2026-11-26
 
 ### Added

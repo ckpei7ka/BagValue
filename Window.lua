@@ -12,7 +12,7 @@
 local _, ns = ...
 
 local DEFAULT_WIDTH, DEFAULT_HEIGHT = 320, 194
-local MIN_WIDTH, MIN_HEIGHT = 300, 180
+local MIN_WIDTH, MIN_HEIGHT = 180, 110
 local COLLAPSED_HEIGHT = 42
 local GRIP_SIZE = 16
 local DEFAULT_OPACITY = 0.94
@@ -205,9 +205,35 @@ local function setTextColor(region, color)
     end
 end
 
+-- Text size. 0 keeps the per-style font sizes; any value in MIN_FONT..MAX_FONT
+-- overrides them for every style, so the player can shrink the text until the
+-- three rows fit a small window.
+local MIN_FONT, MAX_FONT, DEFAULT_FONT = 8, 20, 12
+
+function ns.GetFontSize()
+    local size = ns.db and ns.db.fontSize
+    if type(size) == "number" and size >= MIN_FONT and size <= MAX_FONT then
+        return math.floor(size + 0.5)
+    end
+    return 0
+end
+
+local function fontPath(object)
+    if type(object) ~= "table" or type(object.GetFont) ~= "function" then return nil end
+    local ok, path, size, flags = pcall(object.GetFont, object)
+    if ok and type(path) == "string" then return path, size, flags end
+    return nil
+end
+
 local function setFont(region, name)
     local object = fontObject(name)
-    if region and object then region:SetFontObject(object) end
+    if not (region and object) then return end
+    local size = ns.GetFontSize()
+    if size > 0 and type(region.SetFont) == "function" then
+        local path, _, flags = fontPath(object)
+        if path and pcall(region.SetFont, region, path, size, flags) then return end
+    end
+    region:SetFontObject(object)
 end
 
 -- UIParent size decides the resize ceiling; it can still be 0 while the client
@@ -275,6 +301,15 @@ end
 -- style changes, so the rows can never run into the title bar or the footer at
 -- the minimum size.
 
+-- The timestamp is the first thing to shorten: it has to survive a window the
+-- player has dragged down to the minimum size.
+local function setTimeText(frame)
+    if not frame or not frame.time then return end
+    local stamp = frame.lastStamp or "—"
+    local width = ns.SafeNumber(frame:GetWidth(), DEFAULT_WIDTH)
+    frame.time:SetText((width >= 250 and TIME_PREFIX or "Updated: ") .. stamp)
+end
+
 local layoutFrame
 
 layoutFrame = function(frame)
@@ -292,15 +327,21 @@ layoutFrame = function(frame)
         frame.time:SetWidth(math.max(80, width - 2 * padding - 52))
     end
 
+    -- Below 150 px the second header line costs more room than it is worth, so
+    -- it is hidden and the rows move up.
+    local compact = height < 150
+    if compact then frame.time:Hide() else frame.time:Show() end
+    setTimeText(frame)
+
     -- Header height comes from the style; the footer always reserves room for
-    -- the refresh button and the counts line.
-    local rowsTop = skin.rowsTop
-    local footer = 64
+    -- the refresh button and the warning line.
+    local rowsTop = compact and (skin.rowsTop - 15) or skin.rowsTop
+    local footer = 40
     local available = height - rowsTop - footer
-    if available < 54 then available = 54 end
+    if available < 42 then available = 42 end
     local step = math.floor(available / 3)
     if step > skin.rowHeight then step = skin.rowHeight end
-    if step < 18 then step = 18 end
+    if step < 14 then step = 14 end
 
     for index = 1, #frame.rows do
         local row = frame.rows[index]
@@ -312,14 +353,11 @@ layoutFrame = function(frame)
         row.value:SetPoint("TOPRIGHT", -padding, y + 1)
     end
 
-    frame.counts:ClearAllPoints()
-    frame.counts:SetPoint("BOTTOMLEFT", padding, 34)
-    frame.counts:SetWidth(math.max(100, width - 2 * padding))
     frame.status:ClearAllPoints()
-    frame.status:SetPoint("BOTTOMLEFT", padding, 48)
-    frame.status:SetWidth(math.max(100, width - 2 * padding))
+    frame.status:SetPoint("BOTTOMLEFT", padding, 32)
+    frame.status:SetWidth(math.max(60, width - 2 * padding))
     frame.refresh:ClearAllPoints()
-    frame.refresh:SetPoint("BOTTOMLEFT", padding, 8)
+    frame.refresh:SetPoint("BOTTOMLEFT", padding, 6)
 end
 
 local function applySkin(frame)
@@ -358,10 +396,6 @@ local function applySkin(frame)
         setFont(frame.status, skin.smallFont)
         setTextColor(frame.status, skin.statusColor)
     end
-    if frame.counts then
-        setFont(frame.counts, skin.smallFont)
-        setTextColor(frame.counts, skin.countsColor)
-    end
     if frame.rows then
         for index = 1, #frame.rows do
             local row = frame.rows[index]
@@ -397,6 +431,9 @@ local function applyCollapsed(frame, collapsed, silent)
         if height > COLLAPSED_HEIGHT then frame.expandedHeight = height end
         setContentShown(frame, false)
         if frame.status then frame.status:Hide() end
+        -- A very small expanded window hides the timestamp; the collapsed
+        -- strip always has room for it.
+        if frame.time then frame.time:Show() end
         frame:SetResizable(false)
         frame:SetHeight(COLLAPSED_HEIGHT)
     else
@@ -509,6 +546,23 @@ ns.CloseSourceMenu = closeSourceMenu
 
 -- Window ---------------------------------------------------------------------
 
+-- The chat size-grabber art points down-right, so a grip anchored to a left or
+-- top corner has to be mirrored or it looks like it resizes the wrong way.
+local GRIP_TEXCOORD = {
+    BOTTOMRIGHT = { 0, 1, 0, 1 },
+    BOTTOMLEFT = { 1, 0, 0, 1 },
+    TOPRIGHT = { 0, 1, 1, 0 },
+    TOPLEFT = { 1, 0, 1, 0 },
+}
+
+local function mirrorGripTexture(texture, corner)
+    local coords = GRIP_TEXCOORD[corner]
+    if not (texture and coords) then return end
+    if type(texture.SetTexCoord) == "function" then
+        texture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+    end
+end
+
 local function addGrip(frame, corner)
     local grip = CreateFrame("Button", nil, frame)
     grip:SetSize(GRIP_SIZE, GRIP_SIZE)
@@ -518,6 +572,15 @@ local function addGrip(frame, corner)
     grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
     if type(grip.SetHighlightTexture) == "function" then
         grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    end
+    if type(grip.GetNormalTexture) == "function" then
+        mirrorGripTexture(grip:GetNormalTexture(), corner)
+    end
+    if type(grip.GetPushedTexture) == "function" then
+        mirrorGripTexture(grip:GetPushedTexture(), corner)
+    end
+    if type(grip.GetHighlightTexture) == "function" then
+        mirrorGripTexture(grip:GetHighlightTexture(), corner)
     end
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function(self)
@@ -534,23 +597,7 @@ local function addGrip(frame, corner)
     return grip
 end
 
-local function countsText(result)
-    local parts = {
-        ("%d items"):format(result.itemSlots or 0),
-        ("%d stacks"):format(result.stackCount or 0),
-    }
-    if (result.unpricedSlots or 0) > 0 then
-        parts[#parts + 1] = ("%d no price"):format(result.unpricedSlots)
-    elseif result.hasSource then
-        parts[#parts + 1] = ("%d priced"):format(result.pricedSlots or 0)
-    end
-    if (result.boundSlots or 0) > 0 then
-        parts[#parts + 1] = ("%d bound"):format(result.boundSlots)
-    end
-    return table.concat(parts, " · ")
-end
-
-local function countsDetail(result)
+local function bagDetail(result)
     local lines = {
         ("Items: %d in %d stacks"):format(result.itemSlots or 0, result.stackCount or 0),
         ("Auctionable with a price: %d"):format(result.pricedSlots or 0),
@@ -596,6 +643,21 @@ local function createWindow()
     title:SetPoint("TOPLEFT", 14, -10)
     title:SetText("BagValue")
     frame.title = title
+
+    -- The item/stack breakdown is still there, but only on the title tooltip:
+    -- the visible summary line is gone so the small window stays clean.
+    title:SetScript("OnEnter", function(self)
+        if type(GameTooltip) ~= "table" or not frame.lastResult then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Bag scan")
+        for line in bagDetail(frame.lastResult):gmatch("[^\n]+") do
+            GameTooltip:AddLine(line, 1, 1, 1)
+        end
+        GameTooltip:Show()
+    end)
+    title:SetScript("OnLeave", function()
+        if type(GameTooltip) == "table" then GameTooltip:Hide() end
+    end)
 
     -- The timestamp moved out of the footer into the header: it stays visible
     -- when the window is collapsed and is short enough for one line.
@@ -651,16 +713,10 @@ local function createWindow()
 
     -- Warning line: only visible when the auction side cannot be computed.
     local status = frame:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    status:SetPoint("BOTTOMLEFT", 14, 48)
+    status:SetPoint("BOTTOMLEFT", 14, 32)
     status:SetJustifyH("LEFT")
     status:SetText("")
     status:Hide()
-
-    local counts = frame:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    counts:SetPoint("BOTTOMLEFT", 14, 34)
-    counts:SetJustifyH("LEFT")
-    counts:SetText("")
-    content[#content + 1] = counts
 
     local refresh = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     refresh:SetSize(84, 20)
@@ -670,22 +726,6 @@ local function createWindow()
         if ns.RequestRefresh then ns.RequestRefresh(0, true) end
     end)
     content[#content + 1] = refresh
-
-    -- The counts line is short enough for the default width; the tooltip holds
-    -- the full breakdown, so nothing has to wrap into the rows above.
-    counts:SetScript("OnEnter", function(self)
-        if type(GameTooltip) ~= "table" or not frame.lastResult then return end
-        GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-        GameTooltip:SetText("Bag scan")
-        local lines = countsDetail(frame.lastResult)
-        for line in lines:gmatch("[^\n]+") do
-            GameTooltip:AddLine(line, 1, 1, 1)
-        end
-        GameTooltip:Show()
-    end)
-    counts:SetScript("OnLeave", function()
-        if type(GameTooltip) == "table" then GameTooltip:Hide() end
-    end)
 
     for _, corner in ipairs({ "BOTTOMRIGHT", "BOTTOMLEFT", "TOPRIGHT", "TOPLEFT" }) do
         local grip = addGrip(frame, corner)
@@ -697,7 +737,6 @@ local function createWindow()
     frame.grips = grips
     frame.collapsed = false
     frame.expandedHeight = DEFAULT_HEIGHT
-    frame.counts = counts
     frame.status = status
     frame.refresh = refresh
 
@@ -717,7 +756,8 @@ local function createWindow()
             rows[3].value:SetTextColor(0.55, 0.55, 0.55)
         end
 
-        frame.time:SetText(TIME_PREFIX .. (result.stamp or "—"))
+        frame.lastStamp = result.stamp or "—"
+        setTimeText(frame)
 
         local warning
         if result.noPriceData then
@@ -733,7 +773,6 @@ local function createWindow()
             frame.status:Hide()
         end
 
-        frame.counts:SetText(countsText(result))
     end
 
     frame.update = update
@@ -800,6 +839,37 @@ function ns.SetOpacity(value)
     end
     if ns.onOpacityChanged then ns.onOpacityChanged(opacity) end
     return opacity
+end
+
+function ns.GetSkin()
+    return currentSkin()
+end
+
+-- 0 restores the per-style font sizes; 8..20 pins one size for every style.
+function ns.SetFontSize(value)
+    local size = ns.SafeNumber(value, 0)
+    if size < MIN_FONT or size > MAX_FONT then size = 0 end
+    if ns.db then ns.db.fontSize = size end
+    if ns.window then
+        applySkin(ns.window)
+        if ns.window.lastResult then ns.window.update(ns.window.lastResult) end
+    end
+    if ns.onFontSizeChanged then ns.onFontSizeChanged(size) end
+    return size
+end
+
+local function currentValueFontSize()
+    local size = ns.GetFontSize()
+    if size > 0 then return size end
+    local skin = currentSkin()
+    local object = _G[skin.valueFont]
+    local path, base = fontPath(object)
+    if path and type(base) == "number" and base > 0 then return math.floor(base + 0.5) end
+    return DEFAULT_FONT
+end
+
+function ns.GetEffectiveFontSize()
+    return currentValueFontSize()
 end
 
 -- Visibility intent ----------------------------------------------------------

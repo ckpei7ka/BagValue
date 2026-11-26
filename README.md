@@ -29,11 +29,11 @@ Prefer the packaged zip from [Releases](https://github.com/ckpei7ka/BagValue/rel
 
 - The window is a standalone frame: it shows up at login, stays open while you play, and is **not** tied to the AddOns options panel — closing the game options does not close BagValue.
 - `/bagvalue` toggles the window. Drag the frame by its body to move it; the position is saved.
-- Drag any of the **four corners** to resize it diagonally. The size is saved, and the rows and labels re-flow with the frame.
+- Drag any of the **four corners** to resize it diagonally. The size is saved, and the rows and labels re-flow with the frame; it can shrink to 180x110, and the text size can be fitted by hand in the settings.
 - The **collapse button** (top right, left of the close button) rolls the window up to a title bar and back. A collapsed window remembers its expanded size.
 - The **close button** hides the window; it comes back with `/bagvalue` or at the next login. "Keep the window open (show it at login)" in the settings controls the login behaviour.
-- The **settings** hold the price source, the window style (Classic, Minimal, Compact, Parchment, Arcane) and the opacity slider. `/bagvalue source <id>`, `/bagvalue style <name>` and `/bagvalue opacity <percent>` do the same from the chat.
-- The header shows the last scan as "Last price update: HH:MM:SS"; it stays visible when the window is collapsed. The three rows are labelled Money / Vendor / Auction with a small coin icon, and the footer keeps only the Refresh button.
+- The **settings** hold the price source, the window style (Classic, Minimal, Compact, Parchment, Arcane), the opacity slider and a text size slider (8-20 pt, or "style default"). `/bagvalue source <id>`, `/bagvalue style <name>`, `/bagvalue opacity <percent>` and `/bagvalue fontsize <0|8-20>` do the same from the chat.
+- The header shows the last scan as "Last price update: HH:MM:SS"; it stays visible when the window is collapsed and hides itself in a very short window. Hover the title to see the item/stack/priced/bound breakdown of the last scan. The three rows are labelled Money / Vendor / Auction with a small coin icon, and the footer keeps only the Refresh button.
 - **Refresh** re-reads the bags. The window also refreshes itself on bag changes, money changes and at the merchant.
 - Settings open from the game's AddOns options (`/bagvalue options`); "Reset window size and position" restores the default layout.
 
