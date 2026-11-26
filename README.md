@@ -32,7 +32,8 @@ Prefer the packaged zip from [Releases](https://github.com/ckpei7ka/BagValue/rel
 - Drag any of the **four corners** to resize it diagonally. The size is saved, and the rows and labels re-flow with the frame.
 - The **collapse button** (top right, left of the close button) rolls the window up to a title bar and back. A collapsed window remembers its expanded size.
 - The **close button** hides the window; it comes back with `/bagvalue` or at the next login. "Keep the window open (show it at login)" in the settings controls the login behaviour.
-- **Source** button (bottom right of the window) or `/bagvalue source <id>` picks the price source.
+- The **settings** hold the price source, the window style (Classic, Minimal, Compact, Parchment, Arcane) and the opacity slider. `/bagvalue source <id>`, `/bagvalue style <name>` and `/bagvalue opacity <percent>` do the same from the chat.
+- The header shows the last scan as "Last price update: HH:MM:SS"; it stays visible when the window is collapsed. The three rows are labelled Money / Vendor / Auction with a small coin icon, and the footer keeps only the Refresh button.
 - **Refresh** re-reads the bags. The window also refreshes itself on bag changes, money changes and at the merchant.
 - Settings open from the game's AddOns options (`/bagvalue options`); "Reset window size and position" restores the default layout.
 
@@ -73,6 +74,10 @@ No `loadstring` is used; only an already-defined global function can be called.
 | `/bagvalue refresh` | Rescan the bags now |
 | `/bagvalue source` | List sources, `*` marks the active one |
 | `/bagvalue source tsm` | Switch the price source |
+| `/bagvalue style` | List window styles, `*` marks the active one |
+| `/bagvalue style minimal` | Switch the window style |
+| `/bagvalue opacity` | Print the current window opacity |
+| `/bagvalue opacity 70` | Set the window opacity to 70% |
 | `/bagvalue options` | Open the settings panel |
 | `/bagvalue debug` | Toggle debug output |
 | `/bagvalue reset` | Reset saved settings |

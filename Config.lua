@@ -39,8 +39,120 @@ local function buildPanel()
         end
     end)
 
+    local appearanceLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    appearanceLabel:SetPoint("TOPLEFT", showOnLogin, "BOTTOMLEFT", 0, -18)
+    appearanceLabel:SetText("Window style")
+
+    local skinButtons = {}
+    local function refreshSkinButtons()
+        for index = 1, #skinButtons do
+            local button = skinButtons[index]
+            local selected = ns.db.skin == button.skinId
+            button:SetText((selected and "> " or "") .. button.skinLabel)
+            local font = button:GetFontString()
+            if font then
+                if selected then
+                    font:SetTextColor(1, 0.82, 0)
+                else
+                    font:SetTextColor(1, 1, 1)
+                end
+            end
+        end
+    end
+
+    local skins = ns.skinList or {}
+    for index = 1, #skins do
+        local skin = skins[index]
+        local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+        button:SetSize(84, 22)
+        if index == 1 then
+            button:SetPoint("TOPLEFT", appearanceLabel, "BOTTOMLEFT", 0, -6)
+        else
+            button:SetPoint("LEFT", skinButtons[#skinButtons], "RIGHT", 5, 0)
+        end
+        button.skinId = skin.id
+        button.skinLabel = skin.label
+        button:SetScript("OnClick", function(self)
+            if ns.SetSkin then ns.SetSkin(self.skinId) end
+        end)
+        skinButtons[#skinButtons + 1] = button
+    end
+    refreshSkinButtons()
+    ns.onSkinChanged = function()
+        refreshSkinButtons()
+    end
+
+    -- Opacity slider. The template ships with every mainline client; a plain
+    -- slider is the fallback so the settings never disappear if it is missing.
+    local created, opacitySlider = pcall(CreateFrame, "Slider", "BagValueOpacitySlider",
+        panel, "OptionsSliderTemplate")
+    if not created then opacitySlider = nil end
+
+    local fallbackLabel
+    if not opacitySlider then
+        opacitySlider = CreateFrame("Slider", "BagValueOpacitySliderFallback", panel)
+        opacitySlider:SetSize(260, 16)
+        opacitySlider:SetOrientation("HORIZONTAL")
+        if type(opacitySlider.SetThumbTexture) == "function" then
+            opacitySlider:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+        end
+        fallbackLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        fallbackLabel:SetPoint("TOPLEFT", opacitySlider, "TOPLEFT", 0, 20)
+    end
+
+    opacitySlider:SetPoint("TOPLEFT", skinButtons[1], "BOTTOMLEFT", 0, -24)
+    opacitySlider:SetWidth(260)
+    if type(opacitySlider.SetOrientation) == "function" then
+        opacitySlider:SetOrientation("HORIZONTAL")
+    end
+    opacitySlider:SetMinMaxValues(20, 100)
+    opacitySlider:SetValueStep(5)
+    if type(opacitySlider.SetObeyStepOnDrag) == "function" then
+        opacitySlider:SetObeyStepOnDrag(true)
+    end
+
+    local sliderLow = _G["BagValueOpacitySliderLow"]
+    local sliderHigh = _G["BagValueOpacitySliderHigh"]
+    local sliderText = _G["BagValueOpacitySliderText"]
+    if sliderLow then sliderLow:SetText("20%") end
+    if sliderHigh then sliderHigh:SetText("100%") end
+
+    local function refreshOpacityText(value)
+        local percent = math.floor((ns.SafeNumber(value, 94)) + 0.5)
+        local label = ("Window opacity: %d%%"):format(percent)
+        if sliderText then
+            sliderText:SetText(label)
+        elseif fallbackLabel then
+            fallbackLabel:SetText(label)
+        end
+    end
+
+    opacitySlider:SetScript("OnValueChanged", function(self, value)
+        refreshOpacityText(value)
+        if ns.SetOpacity then ns.SetOpacity(value / 100) end
+    end)
+
+    -- Keep the slider in sync when the opacity changes from a slash command or
+    -- another settings page. The guard stops the callback from bouncing.
+    ns.onOpacityChanged = function(opacity)
+        local target = math.floor(opacity * 100 + 0.5)
+        local current = math.floor(opacitySlider:GetValue() + 0.5)
+        if math.abs(current - target) >= 1 then
+            opacitySlider:SetValue(target)
+        end
+    end
+
+    opacitySlider:SetValue(math.floor((ns.GetOpacity and ns.GetOpacity() or 0.94) * 100 + 0.5))
+    refreshOpacityText(opacitySlider:GetValue())
+
+    local appearanceHint = panel:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    appearanceHint:SetPoint("TOPLEFT", opacitySlider, "BOTTOMLEFT", 0, -10)
+    appearanceHint:SetWidth(440)
+    appearanceHint:SetJustifyH("LEFT")
+    appearanceHint:SetText("The style and the opacity apply to the window immediately and are saved per account.")
+
     local sourceLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    sourceLabel:SetPoint("TOPLEFT", showOnLogin, "BOTTOMLEFT", 0, -18)
+    sourceLabel:SetPoint("TOPLEFT", appearanceHint, "BOTTOMLEFT", 0, -16)
     sourceLabel:SetText("Auction price source")
 
     local sourceButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")

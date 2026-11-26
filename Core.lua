@@ -8,7 +8,7 @@
 local ADDON_NAME, ns = ...
 
 ns.name = ADDON_NAME
-ns.version = "0.2.0"
+ns.version = "0.3.0"
 ns.prefix = "BAGVALUE"
 
 local DB_VERSION = 2
@@ -20,6 +20,8 @@ local DEFAULTS = {
     customFunction = "",
     showOnLogin = true,
     collapsed = false,
+    skin = "classic",
+    opacity = 0.94,
     dbVersion = DB_VERSION,
     window = nil,
 }
@@ -118,7 +120,7 @@ function ns.OpenOptions()
         local ok = pcall(Settings.OpenToCategory, ns.settingsCategory:GetID())
         if ok then return true end
     end
-    ns.Print("open /bagvalue and use the Source button, or /bagvalue help")
+    ns.Print("open /bagvalue and use /bagvalue source, style or opacity")
     return false
 end
 
@@ -173,6 +175,9 @@ local function printHelp()
     ns.Print("/bagvalue refresh — rescan bags now")
     ns.Print("/bagvalue source — list price sources")
     ns.Print("/bagvalue source <id> — pick a price source")
+    ns.Print("/bagvalue style — list window styles")
+    ns.Print("/bagvalue style <id> — pick a window style")
+    ns.Print("/bagvalue opacity <20-100> — set the window background opacity")
     ns.Print("/bagvalue options — open settings")
     ns.Print("/bagvalue debug — toggle debug output")
     ns.Print("/bagvalue reset — reset settings")
@@ -212,6 +217,41 @@ SlashCmdList["BAGVALUE"] = function(message)
             printSources()
         else
             ns.SetPriceSource(strtrim(rest):lower())
+        end
+    elseif command == "style" or command == "skin" or command == "стиль" then
+        local skins = ns.skinList or {}
+        if rest == "" then
+            local current = ns.db.skin or "classic"
+            local parts = {}
+            for _, skin in ipairs(skins) do
+                parts[#parts + 1] = (skin.id == current and "*" or " ") .. skin.id
+            end
+            ns.Print(table.concat(parts, ", "))
+        else
+            local wanted = strtrim(rest):lower()
+            local found = false
+            for _, skin in ipairs(skins) do
+                if skin.id == wanted then found = true end
+            end
+            if found and ns.SetSkin then
+                ns.SetSkin(wanted)
+                ns.Print(("window style: %s"):format(wanted))
+            else
+                ns.Print("unknown style, try /bagvalue style")
+            end
+        end
+    elseif command == "opacity" or command == "прозрачность" then
+        if rest == "" then
+            local opacity = ns.GetOpacity and ns.GetOpacity() or 0.94
+            ns.Print(("window opacity: %d%%"):format(math.floor(opacity * 100 + 0.5)))
+        else
+            local percent = ns.SafeNumber(strtrim(rest), nil)
+            if percent then
+                ns.SetOpacity(percent / 100)
+                ns.Print(("window opacity: %d%%"):format(math.floor(percent + 0.5)))
+            else
+                ns.Print("usage: /bagvalue opacity <20-100>")
+            end
         end
     elseif command == "options" or command == "config" or command == "настройки" then
         ns.OpenOptions()

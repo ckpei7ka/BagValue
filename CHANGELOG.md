@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0] - 2026-11-26
+
+### Added
+
+- Five window styles — Classic, Minimal, Compact, Parchment and Arcane — picked in the settings, not on the window. Each style has its own background, border, fonts and value colours.
+- Window opacity slider (20–100%) in the settings; the choice is saved per account.
+- `/bagvalue style <name>` and `/bagvalue opacity <percent>` to change both without opening the settings.
+
+### Changed
+
+- Row captions are short now ("Money", "Vendor", "Auction") with a coin icon in front, so the values have room even at the minimum window size.
+- The last scan time moved from the footer into the header and reads "Last price update: HH:MM:SS"; it stays visible when the window is collapsed.
+- The footer counters are shorter ("2 items · 4 stacks · 2 priced"), and the full breakdown is available on hover.
+- The "Source: ..." button is gone from the window; the source picker lives only in the settings.
+- Row layout is recomputed from the frame height, which fixes the overlapping footer text at small sizes. The default size is now 320x194 and the minimum 300x180.
+
 ## [0.2.0] - 2026-11-25
 
 ### Fixed
